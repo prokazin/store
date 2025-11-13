@@ -1,31 +1,20 @@
-// Инициализация Telegram Web App
 const tg = window.Telegram.WebApp;
 tg.ready();
 
-// Админский ID
-const ADMIN_ID = 1499853097; // замените на свой Telegram ID
-const userId = tg.initDataUnsafe.user?.id;
-const isAdmin = userId === ADMIN_ID;
-
-if(isAdmin) document.getElementById("adminPanel").style.display = "block";
-
-// Каталог
-let catalog = JSON.parse(localStorage.getItem("catalog")) || [
-  {id:1, name:"Товар 1", description:"Описание товара 1", price:500, img:"https://via.placeholder.com/150"}
-];
-
+let catalog = []; // будет загружен с сервера
 let cart = [];
 
 const catalogDiv = document.getElementById("catalog");
 const cartDiv = document.getElementById("cart");
 const checkoutButton = document.getElementById("checkoutButton");
+const adminContainer = document.getElementById("adminContainer");
 
-// Рендер каталога с описанием
-function renderCatalog(){
-  catalogDiv.innerHTML="";
-  catalog.forEach(item=>{
+// Функция рендера каталога
+function renderCatalog() {
+  catalogDiv.innerHTML = "";
+  catalog.forEach(item => {
     const div = document.createElement("div");
-    div.className="item";
+    div.className = "item";
     div.innerHTML = `
       <img src="${item.img}" alt="${item.name}">
       <h3>${item.name}</h3>
@@ -37,45 +26,44 @@ function renderCatalog(){
   });
 }
 
-// Рендер корзины
-function renderCart(){
-  cartDiv.innerHTML="";
-  if(cart.length===0){ cartDiv.innerHTML="<p>Корзина пуста</p>"; return; }
-  let total=0;
+// Корзина
+function renderCart() {
+  cartDiv.innerHTML = "";
+  if(cart.length === 0){ cartDiv.innerHTML="<p>Корзина пуста</p>"; return; }
+  let total = 0;
   cart.forEach((item,index)=>{
     total += item.price;
     const div = document.createElement("div");
     div.className="cart-item";
-    div.innerHTML=`<p>${item.name} - ${item.price} ₽</p>
+    div.innerHTML = `<p>${item.name} - ${item.price} ₽</p>
       <button onclick="removeFromCart(${index})">Удалить</button>`;
     cartDiv.appendChild(div);
   });
   const totalDiv = document.createElement("div");
-  totalDiv.style.marginTop = "10px";
-  totalDiv.innerHTML=`<strong>Итого: ${total} ₽</strong>`;
+  totalDiv.style.marginTop="10px";
+  totalDiv.innerHTML = `<strong>Итого: ${total} ₽</strong>`;
   cartDiv.appendChild(totalDiv);
 }
 
-// Добавление в корзину
 function addToCart(id){
-  const item = catalog.find(i => i.id===id);
+  const item = catalog.find(i => i.id === id);
   cart.push(item);
   renderCart();
 }
 
-// Удаление из корзины
 function removeFromCart(index){
   cart.splice(index,1);
   renderCart();
 }
 
-// Отправка заказа админу
+// Отправка заказа
 checkoutButton.addEventListener("click", async ()=>{
-  if(cart.length===0){ alert("Корзина пуста!"); return; }
-  const orderText = cart.map(i=>`${i.name} - ${i.price} ₽`).join("\n");
+  if(cart.length === 0){ alert("Корзина пуста!"); return; }
+  const orderText = cart.map(i => `${i.name} - ${i.price} ₽`).join("\n");
   const user = tg.initDataUnsafe.user;
   const fullOrder = `Новый заказ от ${user.first_name} (@${user.username||"без username"}):\n${orderText}`;
-  const SERVER_URL = "https://ваш-сайт.vercel.app/send_order"; // замените на URL вашего сервера
+  const SERVER_URL = "https://ваш-сайт.vercel.app/send_order";
+
   try{
     const response = await fetch(SERVER_URL,{
       method:"POST",
@@ -87,53 +75,93 @@ checkoutButton.addEventListener("click", async ()=>{
   }catch(e){ alert("Ошибка соединения с сервером"); console.error(e);}
 });
 
-// Админка
-if(isAdmin){
-  const adminCatalogDiv=document.getElementById("adminCatalog");
-  const addItemButton=document.getElementById("addItemButton");
-  const newName=document.getElementById("newName");
-  const newDescription=document.getElementById("newDescription");
-  const newPrice=document.getElementById("newPrice");
-  const newImg=document.getElementById("newImg");
+// --- Загрузка данных с сервера ---
+async function loadData() {
+  const SERVER_URL = "https://ваш-сайт.vercel.app/get_catalog";
+  const userId = tg.initDataUnsafe.user?.id;
 
-  function renderAdminCatalog(){
-    adminCatalogDiv.innerHTML="";
-    catalog.forEach((item,index)=>{
-      const div=document.createElement("div");
-      div.className="admin-item";
-      div.innerHTML=`
-        <img src="${item.img}" alt="${item.name}">
-        <p>${item.name} - ${item.price} ₽</p>
-        <p>${item.description}</p>
-        <button onclick="deleteItem(${index})">Удалить</button>
-      `;
-      adminCatalogDiv.appendChild(div);
+  try {
+    const response = await fetch(SERVER_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({user_id: userId})
     });
-  }
+    const data = await response.json();
 
-  addItemButton.addEventListener("click", ()=>{
-    const name=newName.value.trim();
-    const description=newDescription.value.trim();
-    const price=parseFloat(newPrice.value);
-    const img=newImg.value.trim() || "https://via.placeholder.com/150";
+    catalog = data.catalog;
+    renderCatalog();
 
-    if(name && description && price){
-      const id = catalog.length ? catalog[catalog.length-1].id +1 :1;
-      catalog.push({id,name,description,price,img});
-      localStorage.setItem("catalog",JSON.stringify(catalog));
-      renderCatalog(); renderAdminCatalog();
-      newName.value=""; newDescription.value=""; newPrice.value=""; newImg.value="";
-    }else alert("Введите все поля!");
-  });
+    if(data.isAdmin) {
+      // Создаём админскую панель только для админа
+      adminContainer.innerHTML = `
+        <div id="adminPanel">
+          <h2>Админпанель</h2>
+          <input type="text" id="newName" placeholder="Название товара">
+          <input type="text" id="newDescription" placeholder="Описание товара">
+          <input type="number" id="newPrice" placeholder="Цена товара">
+          <input type="text" id="newImg" placeholder="URL картинки">
+          <button id="addItemButton">Добавить товар</button>
+          <div id="adminCatalog"></div>
+        </div>
+      `;
 
-  window.deleteItem = (index)=>{
-    catalog.splice(index,1);
-    localStorage.setItem("catalog",JSON.stringify(catalog));
-    renderCatalog(); renderAdminCatalog();
-  }
+      // Привязываем события
+      const addItemButton = document.getElementById("addItemButton");
+      const newName = document.getElementById("newName");
+      const newDescription = document.getElementById("newDescription");
+      const newPrice = document.getElementById("newPrice");
+      const newImg = document.getElementById("newImg");
+      const adminCatalogDiv = document.getElementById("adminCatalog");
 
-  renderAdminCatalog();
+      function renderAdminCatalog(){
+        adminCatalogDiv.innerHTML = "";
+        catalog.forEach((item,index)=>{
+          const div = document.createElement("div");
+          div.className="admin-item";
+          div.innerHTML=`
+            <img src="${item.img}" alt="${item.name}">
+            <p>${item.name} - ${item.price} ₽</p>
+            <p>${item.description}</p>
+            <button onclick="deleteItem(${index})">Удалить</button>
+          `;
+          adminCatalogDiv.appendChild(div);
+        });
+      }
+
+      window.deleteItem = async (index)=>{
+        await fetch("https://ваш-сайт.vercel.app/delete_item",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({index:index,user_id:userId})
+        });
+        catalog.splice(index,1);
+        renderCatalog();
+        renderAdminCatalog();
+      }
+
+      addItemButton.addEventListener("click", async ()=>{
+        const name = newName.value.trim();
+        const description = newDescription.value.trim();
+        const price = parseFloat(newPrice.value);
+        const img = newImg.value.trim() || "https://via.placeholder.com/150";
+        if(name && description && price){
+          const response = await fetch("https://ваш-сайт.vercel.app/add_item",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({name,description,price,img,user_id:userId})
+          });
+          catalog.push({id:catalog.length+1,name,description,price,img});
+          renderCatalog();
+          renderAdminCatalog();
+          newName.value=""; newDescription.value=""; newPrice.value=""; newImg.value="";
+        }else alert("Введите все поля!");
+      });
+
+      renderAdminCatalog();
+    }
+
+  } catch(e){ console.error("Ошибка загрузки данных", e);}
 }
 
-renderCatalog();
+loadData();
 renderCart();
