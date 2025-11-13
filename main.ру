@@ -1,11 +1,49 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import requests
 import os
 
 app = Flask(__name__)
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+ADMIN_IDS = [123456789]  # сюда добавляем ID администраторов
+catalog = []  # Хранение товаров на сервере
+
 ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID")
+
+@app.route("/get_catalog", methods=["POST"])
+def get_catalog():
+    data = request.json
+    user_id = data.get("user_id")
+    is_admin = user_id in ADMIN_IDS
+    return jsonify({"catalog": catalog, "isAdmin": is_admin})
+
+@app.route("/add_item", methods=["POST"])
+def add_item():
+    data = request.json
+    user_id = data.get("user_id")
+    if user_id not in ADMIN_IDS:
+        return {"error":"not authorized"},403
+    item = {
+        "id": len(catalog)+1,
+        "name": data.get("name"),
+        "description": data.get("description"),
+        "price": data.get("price"),
+        "img": data.get("img")
+    }
+    catalog.append(item)
+    return {"status":"ok"}
+
+@app.route("/delete_item", methods=["POST"])
+def delete_item():
+    data = request.json
+    user_id = data.get("user_id")
+    if user_id not in ADMIN_IDS:
+        return {"error":"not authorized"},403
+    index = data.get("index")
+    if 0 <= index < len(catalog):
+        catalog.pop(index)
+        return {"status":"ok"}
+    return {"error":"invalid index"},400
 
 @app.route("/send_order", methods=["POST"])
 def send_order():
@@ -13,9 +51,9 @@ def send_order():
     order_text = data.get("order")
     if order_text:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        requests.post(url, data={"chat_id": ADMIN_CHAT_ID, "text": order_text})
+        requests.post(url,data={"chat_id":ADMIN_CHAT_ID,"text":order_text})
         return {"status":"ok"}
-    return {"status":"error"}, 400
+    return {"status":"error"},400
 
 if __name__ == "__main__":
     app.run()
