@@ -1,25 +1,37 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Store</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniStore</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<h1>Mini Store</h1>
 
-<!-- Каталог товаров -->
-<div id="catalog"></div>
+<header>
+  <nav>
+    <button class="tab-btn active" data-tab="catalog">Каталог</button>
+    <button class="tab-btn" data-tab="cart">Корзина</button>
+    <button class="tab-btn" data-tab="contacts">Контакты</button>
+  </nav>
+</header>
 
-<!-- Корзина -->
-<h2>Корзина</h2>
-<div id="cart"></div>
-<button id="checkoutButton">Оформить заказ</button>
+<main>
+  <section id="catalog" class="tab-content active">
+    <div id="product-list" class="grid"></div>
+  </section>
 
-<!-- Контейнер для админки (будет заполнен через JS после проверки ID на сервере) -->
-<div id="adminContainer"></div>
+  <section id="cart" class="tab-content">
+    <div id="cart-items"></div>
+    <button id="checkout">Оформить заказ</button>
+  </section>
+
+  <section id="contacts" class="tab-content">
+    <h2>Контакты</h2>
+    <p>Email: info@ministore.ru</p>
+    <p>Телефон: +7 (999) 123-45-67</p>
+  </section>
+</main>
 
 <script src="script.js"></script>
 </body>
