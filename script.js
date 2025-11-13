@@ -3,7 +3,7 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 
 // Админский ID
-const ADMIN_ID = 123456789; // замените на свой Telegram ID
+const ADMIN_ID = 1499853097; // замените на свой Telegram ID
 const userId = tg.initDataUnsafe.user?.id;
 const isAdmin = userId === ADMIN_ID;
 
